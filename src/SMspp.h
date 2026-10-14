@@ -62,6 +62,8 @@ struct s_ag{//THIS DEFINES AN INDIVIDUAL AGENT IN A STRINGMOL SYSTEM
 	bool 		set;
 	int 		x;
 	int			y;
+
+	int			cslot;	//PERF: slot in the ag_cache mirror of its list (see agcache.h)
 };
 
 /*

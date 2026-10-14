@@ -32,7 +32,7 @@ static std::string ident(const char *s){
 	for(auto &m:M) if(m.seq==s) return m.name;
 	return std::string("new(") + std::to_string(strlen(s)) + ")";
 }
-static void clear_next(stringPM &A){ A.nexthead=NULL; A.cnext.v.clear(); A.cnext.valid=true; }
+static void clear_next(stringPM &A){ A.nexthead=NULL; A.cnext.clear(); }
 
 static void react(stringPM &A, const mol &x, const mol &y, int maxsteps){
 	s_ag *a=mk(A,x.seq), *b=mk(A,y.seq);

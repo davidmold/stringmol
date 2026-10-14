@@ -28,6 +28,8 @@
 #include <string.h>
 #include <math.h>
 #include <unordered_set>
+#include <unordered_map>
+#include <vector>
 
 #include "mt19937-2.h"
 #include "randutil.h"
@@ -187,61 +189,20 @@ void initpopdyfile(stringPM *A, bool overwrite = false){
  *
  */
 void printsppct(stringPM *A, int t){
-
-	//char fn[128];
-	FILE *fp;
-	s_ag *pa;
-	int spc,count;
-	int finished = 0;
-	int nag,*done;
-	int i,found;
-
-	nag = A->nagents(A->nowhead,-1);
-
-	done = (int *) malloc(nag*sizeof(int));
-	memset(done,0,nag*sizeof(int));
-
-	//memset(fn,0,128*sizeof(char));
-	//sprintf(fn,"popdy%03d.dat",A->run_number);
-
-	//Now we need to get new file names - so popdy001.dat isn't overwritten, but becomes popdy001.1.dat in the subsequent run;
-
-
-	//get_unused_fn(fn);
-	//TODO: need to check that this isn't going to cause problems with callers other than smspatial...!
-	fp = fopen(A->popdyfn,"a");
-
-	do{
-		i = 0;
-		found=0;
-		finished = 1;
-		for(i=0,pa=A->nowhead;i<nag;i++,pa=pa->next){
-			if(!done[i]){
-				if(!found){
-					done[i]=1;
-					count=1;
-					finished=0;
-					found=1;
-					spc = pa->spp->spp;
-				}
-				else{
-					if(pa->spp->spp==spc){
-						done[i]=1;
-						count++;
-					}
-				}
-			}
-		}
-
-		//Write to file
-		if(!finished)
-			fprintf(fp,"%d,%d,%d\n",t,spc,count);
-
-	}while(!finished);
-
+	/* PERF: one pass with a hash map instead of one full list scan per species.
+	 * Output order is unchanged: species in order of first appearance in nowhead. */
+	std::vector<std::pair<int,int> > rows;
+	std::unordered_map<int,size_t> at;
+	for(s_ag *pa=A->nowhead; pa!=NULL; pa=pa->next){
+		int spc = pa->spp->spp;
+		auto it = at.find(spc);
+		if(it==at.end()){ at.emplace(spc,rows.size()); rows.push_back(std::make_pair(spc,1)); }
+		else rows[it->second].second++;
+	}
+	FILE *fp = fopen(A->popdyfn,"a");
+	for(auto &r: rows) fprintf(fp,"%d,%d,%d\n",t,r.first,r.second);
 	fflush(fp);
 	fclose(fp);
-	free(done);
 }
 
 

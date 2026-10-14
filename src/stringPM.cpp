@@ -22,6 +22,7 @@
 #include <string.h>
 #include <math.h>
 #include <float.h>
+#include <utility>
 
 #include "memoryutil.h"
 #include "mt19937-2.h"
@@ -1509,7 +1510,7 @@ int stringPM::countcomp(char E, char P){
 }
 
 
-stringPM::ag_cache * stringPM::cache_for(s_ag **list){
+ag_cache * stringPM::cache_for(s_ag **list){
 	if(list == &nowhead) return &cnow;
 	if(list == &nexthead) return &cnext;
 	return NULL;
@@ -1519,22 +1520,14 @@ static int sm_verify = -1;
 
 void stringPM::cache_ensure(ag_cache *c, s_ag *head){
 	if(sm_verify<0) sm_verify = getenv("STRINGMOL_VERIFY")!=NULL;
-	bool ok = c->valid;
-	if(ok){
-		if(c->v.empty()) ok = (head==NULL);
-		else ok = (c->v.front()==head);
-	}
+	bool ok = c->valid && ((c->nlive==0) == (head==NULL)) && (c->nlive==0 || (c->first()==head && c->tail && c->tail->next==NULL));
 	if(ok && sm_verify){
-		size_t i=0; s_ag *p=head;
-		for(;p!=NULL && i<c->v.size();p=p->next,i++) if(c->v[i]!=p){ok=false;break;}
-		if(ok && (p!=NULL || i!=c->v.size())) ok=false;
-		if(!ok){ size_t L=0; for(s_ag*q=head;q;q=q->next) L++; printf("STRINGMOL_VERIFY: list cache drift detected (%s) cached=%zu actual=%zu front_ok=%d at=%zu\n", c==&cnow?"now":"next", c->v.size(), L, (int)(!c->v.empty() && c->v.front()==head), i); fflush(stdout); }
+		int i=0; s_ag *p=head;
+		for(; p!=NULL && i<c->nlive; p=p->next, i++) if(c->kth(i)!=p){ ok=false; break; }
+		if(ok && (p!=NULL || i!=c->nlive)) ok=false;
+		if(!ok){ printf("STRINGMOL_VERIFY: list cache drift detected (%s)\n", c==&cnow?"now":"next"); fflush(stdout); }
 	}
-	if(!ok){
-		c->v.clear();
-		for(s_ag *p=head;p!=NULL;p=p->next) c->v.push_back(p);
-		c->valid = true;
-	}
+	if(!ok) c->rebuild(head);
 }
 
 int stringPM::append_ag(s_ag **list, s_ag *ag){
@@ -1547,11 +1540,11 @@ int stringPM::append_ag(s_ag **list, s_ag *ag){
 			*list=ag;
 		}
 		else{
-			pag = c->v.back();
+			pag = c->tail;
 			pag->next = ag;
 			ag->prev = pag;
 		}
-		for(s_ag *q=ag;q!=NULL;q=q->next) c->v.push_back(q);
+		for(s_ag *q=ag;q!=NULL;q=q->next) c->push(q);   // original appends a whole chain
 		return 0;
 	}
 
@@ -1587,6 +1580,7 @@ bool stringPM::ag_in_list(s_ag *list, s_ag *tag){
 
 int stringPM::extract_ag(s_ag **list, s_ag *ag){
 
+	s_ag *prev_before = ag->prev;
 	//printf("extracting: list = %p, ag = %p\n",*list,ag);
 	if(ag == *list){
 		*list = ag->next;
@@ -1602,22 +1596,11 @@ int stringPM::extract_ag(s_ag **list, s_ag *ag){
 	}
 	ag->prev=NULL;
 	ag->next=NULL;
-	{
-		/* The original code sometimes extracts an agent via the "wrong" list head
-		 * (it unlinks through prev/next, so it works on either list). Mirror that:
-		 * remove it from whichever cache actually holds it. */
-		ag_cache *cs[2] = { &cnow, &cnext };
-		ag_cache *c = cache_for(list);
-		if(c==&cnext){ cs[0]=&cnext; cs[1]=&cnow; }
-		bool found=false;
-		for(int k=0;k<2 && !found;k++){
-			if(!cs[k]->valid) continue;
-			for(size_t i=cs[k]->v.size();i-->0;){
-				if(cs[k]->v[i]==ag){ cs[k]->v.erase(cs[k]->v.begin()+i); found=true; break; }
-			}
-		}
-		if(!found){ cnow.valid=false; cnext.valid=false; }
-	}
+	/* The original code sometimes extracts an agent via the "wrong" list head (it unlinks
+	 * through prev/next, so it works on either list): update whichever mirror holds it. */
+	if(cnow.valid && cnow.holds(ag)) cnow.remove(ag,prev_before);
+	else if(cnext.valid && cnext.holds(ag)) cnext.remove(ag,prev_before);
+	else { cnow.valid=false; cnext.valid=false; }
 	return 0;
 }
 
@@ -1699,11 +1682,11 @@ int stringPM::nagents(s_ag *head, int state){
 s_ag * stringPM::rand_ag(s_ag *head, int state){
 	if(state==-1 && head!=NULL && head==nowhead){
 		cache_ensure(&cnow,head);
-		int count = (int) cnow.v.size();
+		int count = cnow.nlive;
 		s_ag *pag=NULL;
 		while(pag==NULL){
 			int pos = (int) (count * rand0to1());
-			pag = (pos<count) ? cnow.v[pos] : NULL;
+			pag = (pos<count) ? cnow.kth(pos) : NULL;
 		}
 		return pag;
 	}
@@ -1773,6 +1756,7 @@ s_ag * stringPM::make_ag(int alab){
 		ag->label=alab;
 		ag->next = NULL;
 		ag->prev = NULL;
+		ag->cslot = -1;
 		ag->exec = NULL;
 		ag->pass = NULL;
 		ag->S = NULL;
@@ -3978,8 +3962,8 @@ void stringPM::update(){
 	//s_ag *pag;
 	nowhead = nexthead;
 	nexthead = NULL;
-	cnow.v.swap(cnext.v); cnow.valid = cnext.valid;
-	cnext.v.clear(); cnext.valid = true;
+	std::swap(cnow,cnext);
+	cnext.clear();
 	//pag = nowhead;
 	//while(pag!=NULL){
 	//	//move_ag(pag);
