@@ -29,7 +29,9 @@ case "${1:-}" in
       [ -d "$d" ] || continue
       n=$(basename "$d")
       st=$(docker inspect -f '{{.State.Status}}' "stringmol-$n" 2>/dev/null || echo "gone")
-      last=$(docker logs --tail 50 "stringmol-$n" 2>/dev/null | grep -a '^Step' | tail -1 || true)
+      # container stdout is block-buffered, so read progress from the population file instead
+      last=$(tail -n 3000 "$d/popdy001.dat" 2>/dev/null | awk -F, '{if($1!=t){t=$1;n=0} n+=$3} END{if(t!="") printf "step %d, %d molecules", t, n}')
+      grep -q EXTINCT <(docker logs "stringmol-$n" 2>/dev/null) && last="$last (extinct)"
       printf '%-24s %-8s %s\n' "$n" "$st" "${last:-}"
     done ;;
   logs)
