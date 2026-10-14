@@ -1431,10 +1431,14 @@ unsigned long init_randseed(char *fn, int printrandseed){
 				else
 					l--;
 			}
-			strncpy(rngpath,fn,l+1);
-			char *pp;
-			pp = &(rngpath[l+1]);
-			strcpy(pp,rngfn);
+			/* FIX: with no '/' in fn, upstream copied fn's first character as a "directory",
+			 * so RNGFILE was never found and restarts silently reseeded from /dev/urandom. */
+			if(fn[l]=='/'){
+				strncpy(rngpath,fn,l+1);
+				strcpy(&(rngpath[l+1]),rngfn);
+			}
+			else
+				strcpy(rngpath,rngfn);
 
 			if((fprng=fopen(rngpath,"r"))!=NULL){
 				if(load_mt(rngpath) != load_mt_success){
