@@ -2091,9 +2091,8 @@ float stringPM::get_sw(s_ag *a1, s_ag *a2, align *sw){
 
 		free(comp);
 
-		align sw2;
-
-		bprob = SmithWatermanV2(a1->S,a2->S,&sw2,blosum,0);
+		/* PERF: upstream ran a second, uncomplemented alignment here into a local (sw2)
+		 * whose result was immediately discarded; removed. */
 
 	//	//TODO: SUGGEST: pass in pointer to the species - not its index
 	//	store_sw(&swlist,sw,a1->spp->spp,a2->spp->spp);
