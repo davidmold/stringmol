@@ -15,12 +15,36 @@ def cls(s):
     if '=?>' in s and '%}' in s and len(pre) >= 15: return 1   # replicase
     return 3                                       # other (code-only, broken, run-ons)
 
+def slim_frames():
+    # slim output: species.tsv (id -> sequence) + grid.snap (zlib frames of uint32 species ids)
+    import struct, zlib
+    seqs = {}
+    for line in open(os.path.join(run, 'species.tsv')):
+        a = line.rstrip('\n').split('\t')
+        if len(a) >= 5: seqs[int(a[0])] = a[4]
+    out = []; gx = gy = None
+    with open(os.path.join(run, 'grid.snap'), 'rb') as f:
+        while True:
+            h = f.read(16)
+            if len(h) < 16: break
+            st, gx, gy, n = struct.unpack('<4I', h); z = f.read(n)
+            if len(z) < n: break                     # partial frame while the run is writing
+            if st % every: continue
+            ids = struct.unpack('<%dI' % (gx * gy), zlib.decompress(z))
+            out.append((st, [(i % gx, i // gx, seqs.get(v & 0x7fffffff, '')) for i, v in enumerate(ids) if v]))
+    return out, gx, gy
+
 steps = sorted(int(m.group(1)) for f in os.listdir(run) if (m := re.match(r'out1_(\d+)\.conf$', f)))
 steps = [s for s in steps if s % every == 0]
 frames = []
 gx = gy = None
 abund = collections.Counter(); first = {}
-for s in steps:
+slim = os.path.exists(os.path.join(run, 'grid.snap'))
+if slim:
+    loaded, gx, gy = slim_frames(); steps = []
+else:
+    loaded = None
+for s in (steps if not slim else []):
     mols = []; seq = None
     for line in open(os.path.join(run, f'out1_{s:05d}.conf' if s < 100000 else f'out1_{s}.conf')):
         if line.startswith('GRIDX'): gx = int(line.split()[1])
@@ -39,6 +63,12 @@ for s in steps:
     if not mols: break          # extinct: stop at the first empty frame
     for _, _, q in mols:
         abund[q] += 1; first.setdefault(q, s)
+if slim:
+    for s, mols in loaded:
+        frames.append((s, mols))
+        for _, _, q in mols:
+            abund[q] += 1; first.setdefault(q, s)
+        if not mols: break
 top = [q for q, _ in abund.most_common(NTOP)]
 topidx = {q: i + 4 for i, q in enumerate(top)}
 enc, series = [], []

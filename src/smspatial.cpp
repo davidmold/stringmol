@@ -69,6 +69,56 @@ typedef enum td_pic{
 
 
 
+
+/* ---- slim output helpers ---- */
+#include <vector>
+#include <stdint.h>
+#include <unistd.h>
+
+/* species.tsv: spp <tab> born_step <tab> active_parent <tab> passive_parent <tab> sequence.
+ * SMspp prepends, so new species are at the head; write those above the last one logged. */
+static void log_new_species(SMspp *SP, FILE *fp, int *lastspp){
+	std::vector<l_spp *> fresh;
+	for(l_spp *ps=SP->species; ps!=NULL && ps->spp > *lastspp; ps=ps->next) fresh.push_back(ps);
+	for(size_t k=fresh.size(); k-->0; ){
+		l_spp *ps = fresh[k];
+		int pa=-1, pp=-1;
+		if(ps->pp){ if(ps->pp->pa) pa=ps->pp->pa->spp; if(ps->pp->pp) pp=ps->pp->pp->spp; }
+		fprintf(fp,"%d\t%d\t%d\t%d\t%s\n",ps->spp,ps->tspp,pa,pp,ps->S);
+		if(ps->spp > *lastspp) *lastspp = ps->spp;
+	}
+	fflush(fp);
+}
+
+/* grid.snap: repeated frames of [uint32 step][uint32 gx][uint32 gy][uint32 nbytes][zlib data],
+ * data = gx*gy uint32 species ids (row-major, y*gx+x), 0 = empty; bound molecules get bit 31. */
+static void write_grid_snapshot(FILE *fp, smsprun *run, unsigned int step){
+	const int gx=run->gridx, gy=run->gridy;
+	std::vector<unsigned char> raw(gx*gy*4,0), z;
+	for(int y=0;y<gy;y++) for(int x=0;x<gx;x++){
+		s_ag *a = run->grid[x][y]; uint32_t v=0;
+		if(a && a->spp){ v = (uint32_t) a->spp->spp; if(a->status!=B_UNBOUND) v |= 0x80000000u; }
+		memcpy(&raw[(y*gx+x)*4],&v,4);
+	}
+	lodepng::compress(z,raw);
+	uint32_t h[4] = { step, (uint32_t)gx, (uint32_t)gy, (uint32_t)z.size() };
+	fwrite(h,4,4,fp); fwrite(z.data(),1,z.size(),fp); fflush(fp);
+}
+
+/* checkpoint = upstream full-state dump (out1_N.conf + RNGstate_N.txt), keeping only the newest few */
+static void write_checkpoint(stringPM *A, SMspp *SP, unsigned int step, unsigned int keep, unsigned int every){
+	char fn[128];
+	sprintf(fn,"out1_%05u.conf",step);
+	FILE *fp=fopen(fn,"w"); A->print_conf(fp); fclose(fp);
+	if(step >= keep*every){
+		unsigned int old = step - keep*every;
+		if(old % every == 0 && old>0){
+			sprintf(fn,"out1_%05u.conf",old); unlink(fn);
+			sprintf(fn,"RNGstate_%u.txt",old); unlink(fn);
+		}
+	}
+}
+
 int main(int argc, char *argv[]) {
 //	int smspatial(int argc, char *argv[]) {
 
@@ -123,6 +173,24 @@ int main(int argc, char *argv[]) {
 
 
 //	while(A.nagents(A.nowhead,-1)){
+	/* Output mode. Default is slim: popdy every 100 steps, species log at birth,
+	 * compressed grid snapshots every SNAPEVERY steps, full checkpoints every CKPTEVERY
+	 * steps (keeping KEEPCKPT). LEGACYOUT 1 restores the upstream every-100-steps dumps. */
+	unsigned int legacy_out=0, snapevery=500, ckptevery=50000, keepckpt=3;
+	readordef_param_int(argv[2],"LEGACYOUT",&legacy_out,0,0);
+	readordef_param_int(argv[2],"SNAPEVERY",&snapevery,500,0);
+	readordef_param_int(argv[2],"CKPTEVERY",&ckptevery,50000,0);
+	readordef_param_int(argv[2],"KEEPCKPT",&keepckpt,3,0);
+	if(!snapevery) snapevery=500;
+	if(!ckptevery) ckptevery=50000;
+	FILE *splog=NULL, *gridf=NULL; int lastspp=-1;
+	if(!legacy_out){
+		splog = fopen("species.tsv","a");
+		gridf = fopen("grid.snap","ab");
+		log_new_species(&SP,splog,&lastspp);
+		write_grid_snapshot(gridf,run,A.extit);
+	}
+
 	while(A.extit < 1000000){// && A.nagents(A.nowhead,-1)>0){
 
 		smspatial_step(&A,run);
@@ -146,35 +214,30 @@ int main(int argc, char *argv[]) {
 		A.extit++;
 		//if(!(A.extit%100))
 		//		printf("Step %d done, number of molecules is %d, nbound = %d\n",(int) A.extit,ct,bt);
-		if((!(A.extit%100))  ){// ||     A.extit == 66396    ){
+		if(!(A.extit%100)){
 			printf("Step %d done, number of molecules is %d, nbound = %d\n",(int) A.extit,ct,bt);
-			FILE *fp;char fn[128];
-			sprintf(fn,"splist%d.dat",A.extit);
-			fp = fopen(fn,"w");
-			SP.print_spp_list(fp);
-			fclose(fp);
-
-			printsppct(&A,A.extit);
-
-			//printf("Step %ld done, number of molecules is %d, nbound = %d\n",A.extit,ct,bt);
-
-			FILE *fpp;
-			sprintf(fn,"out1_%05d.conf",A.extit);
-			fpp = fopen(fn,"w");
-			A.print_conf(fpp);
-			fclose(fpp);
-
-			//Now let's reload the file so we can check:
-			/*
-			SMspp		SPB;
-			stringPM	B(&SPB);
-			B.load(fn,NULL,0,1);
-			B.print_agents(stdout,"NOW",0);
-			sprintf(fn,"outB_%05d.conf",A.extit);
-			fpp = fopen(fn,"w");
-			B.print_conf(fpp);
-			fclose(fpp);
-			*/
+			fflush(stdout);
+			if(legacy_out){
+				/* upstream output: full species list + full state + RNG every 100 steps */
+				FILE *fp;char fn[128];
+				sprintf(fn,"splist%d.dat",A.extit);
+				fp = fopen(fn,"w");
+				SP.print_spp_list(fp);
+				fclose(fp);
+				printsppct(&A,A.extit);
+				sprintf(fn,"out1_%05d.conf",A.extit);
+				fp = fopen(fn,"w");
+				A.print_conf(fp);
+				fclose(fp);
+			}
+			else{
+				printsppct(&A,A.extit);              // population counts (popdy001.dat)
+				log_new_species(&SP,splog,&lastspp);  // each species once, at birth (species.tsv)
+			}
+		}
+		if(!legacy_out){
+			if(!(A.extit%snapevery)) write_grid_snapshot(gridf,run,A.extit);
+			if(!(A.extit%ckptevery)) write_checkpoint(&A,&SP,A.extit,keepckpt,ckptevery);
 		}
 
 		//if(!(A.extit%10)){
@@ -257,6 +320,12 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	if(!legacy_out){
+		/* final state: full species list (with parent-pair counts) and a last checkpoint */
+		FILE *fp = fopen("splist_final.dat","w"); SP.print_spp_list(fp); fclose(fp);
+		write_checkpoint(&A,&SP,A.extit,keepckpt+1,ckptevery);
+		fclose(splog); fclose(gridf);
+	}
 	printf("FINISHED smspatial\n");
 //	fflush(stdout);
 	return 0;

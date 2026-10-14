@@ -18,7 +18,12 @@ Progress lines go to the container log (`./sm logs`).
 Notes
 - CPU-only, single-threaded per run; no GPU reservation. aida has 6 physical
   cores, so keep concurrent runs to about 6.
-- A full 1M-step run writes ~10 GB (a full state dump every 100 steps).
+- Output (slim, default): popdy001.dat every 100 steps; species.tsv (each species once:
+  id, birth step, parents, sequence); grid.snap (compressed species-id grid every
+  SNAPEVERY=500 steps, ~2 KB/frame); out1_N.conf + RNGstate_N.txt checkpoints every
+  CKPTEVERY=50000 steps, newest KEEPCKPT=3 kept; splist_final.dat at the end.
+  A 1M-step run is a few hundred MB. LEGACYOUT 1 in the config restores the upstream
+  every-100-steps dumps (~100 GB per run).
 - The step loop is hard-coded to 1,000,000 steps in `src/smspatial.cpp`; NSTEPS
   in the config is ignored. Step 90,001 prints a block of RNG debug lines.
 - Probes: `./sm bind probe/pairs.txt` and `./sm react probe/pairs3.txt` (binding table; full reactions with mutation off).
