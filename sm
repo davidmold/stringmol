@@ -8,6 +8,8 @@
 #   ./sm bind PAIRS                 binding probabilities + copier role for molecule pairs
 #   ./sm react PAIRS [MAXSTEPS]     run each pairwise reaction to completion (mutation off)
 #   ./sm resume NAME FROM STEP      continue run FROM from its checkpoint at STEP as new run NAME
+#   ./sm batch LIST [N]             run every "NAME CONF" line in LIST, at most N at once (default 5);
+#                                   runs in the background, log in runs/batch.log
 #   ./sm viz NAME [EVERY]           build runs/NAME/viewer.html (open in a browser)
 # PAIRS file lines: "R name seq" (replicase) or "P name seq" (other)
 set -euo pipefail
@@ -48,6 +50,20 @@ case "${1:-}" in
     mkdir -p "$RUNS/$name"; cp "$c" "$RUNS/$name/run.conf"; cp "$src/RNGstate_$step.txt" "$RUNS/$name/"
     docker compose run -d --name "stringmol-$name" -v "$RUNS/$name:/runs" smspatial run.conf >/dev/null
     echo "resumed $from@$step as stringmol-$name" ;;
+  batch)
+    list="${2:?list file}"; max="${3:-5}"; [ -f "$list" ] || { echo "no such file: $list" >&2; exit 1; }
+    list=$(realpath "$list"); me=$(realpath "$0")
+    nohup bash -c '
+      list="$1"; max="$2"; me="$3"; runs="$4"
+      while read -r name conf; do
+        [ -z "$name" ] && continue
+        [ -e "$runs/$name" ] && { echo "$(date -Is) skip $name (exists)"; continue; }
+        while [ "$(docker ps --filter name=^stringmol- --format x | wc -l)" -ge "$max" ]; do sleep 60; done
+        echo "$(date -Is) start $name"; "$me" start "$name" "$conf" >/dev/null 2>&1
+        sleep 5
+      done < "$list"
+      echo "$(date -Is) batch done"' _ "$list" "$max" "$me" "$RUNS" >> "$RUNS/batch.log" 2>&1 &
+    echo "batch started from $list (max $max at once); log: $RUNS/batch.log" ;;
   viz)
     name="${2:?run name}"; [ -d "$RUNS/$name" ] || { echo "no run '$name'" >&2; exit 1; }
     python3 viz/build.py "$RUNS/$name" "$RUNS/$name/viewer.html" "${3:-500}" ;;
@@ -58,5 +74,5 @@ case "${1:-}" in
       /opt/stringmol/config/spatial_stringmol_v2.0.3.conf /pairs.txt ${3:-} 2>&1 \
       | grep -v -e '^Reverting' -e '^Number of agents' -e '^No MIS' -e '^File name' -e '^$' ;;
   *)
-    sed -n 2,13p "$0"; exit 1 ;;
+    sed -n 2,15p "$0"; exit 1 ;;
 esac
