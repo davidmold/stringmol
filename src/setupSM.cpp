@@ -1452,6 +1452,18 @@ unsigned long init_randseed(char *fn, int printrandseed){
 		rseed = seedin = sl = stmp;
 	}
 
+	/* Replay experiments: RESEED n in a resumed config keeps the saved state but
+	 * draws a fresh random stream from seed n from here on. */
+	if(foundrng){
+		unsigned int reseed=0;
+		readordef_param_int(fn,"RESEED",&reseed,0,0);
+		if(reseed){
+			sgenrand(reseed);
+			rseed = reseed;
+			printf("RESEED: continuing from saved state with new seed %u\n",reseed);
+		}
+	}
+
 	if(printrandseed){
 		char frfn[128];
 

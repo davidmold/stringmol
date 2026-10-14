@@ -7,7 +7,8 @@
 #   ./sm stop NAME                  stop a run (output is kept)
 #   ./sm bind PAIRS                 binding probabilities + copier role for molecule pairs
 #   ./sm react PAIRS [MAXSTEPS]     run each pairwise reaction to completion (mutation off)
-#   ./sm resume NAME FROM STEP      continue run FROM from its checkpoint at STEP as new run NAME
+#   ./sm resume NAME FROM STEP [SEED]  continue run FROM from its checkpoint at STEP as new run
+#                                   NAME; with SEED, replay from that state with a new random stream
 #   ./sm batch LIST [N]             run every "NAME CONF" line in LIST, at most N at once (default 5);
 #                                   runs in the background, log in runs/batch.log
 #   ./sm viz NAME [EVERY]           build runs/NAME/viewer.html (open in a browser)
@@ -48,6 +49,7 @@ case "${1:-}" in
     [ -f "$c" ] && [ -f "$src/RNGstate_$step.txt" ] || { echo "no checkpoint $step in $from" >&2; exit 1; }
     [ -e "$RUNS/$name" ] && { echo "run '$name' already exists" >&2; exit 1; }
     mkdir -p "$RUNS/$name"; cp "$c" "$RUNS/$name/run.conf"; cp "$src/RNGstate_$step.txt" "$RUNS/$name/"
+    [ -n "${5:-}" ] && printf '\nRESEED %s\n' "$5" >> "$RUNS/$name/run.conf"
     docker compose run -d --name "stringmol-$name" -v "$RUNS/$name:/runs" smspatial run.conf >/dev/null
     echo "resumed $from@$step as stringmol-$name" ;;
   batch)
