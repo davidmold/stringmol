@@ -138,7 +138,7 @@ public:
 	void clearout(int verbose = 0);
 
 	//return a string describing the error
-	char * parse_error(int errno);
+	char * parse_error(int errcode);
 
 	//Loading
 	int load_splist(const char *fn,int verbose);

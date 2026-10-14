@@ -152,19 +152,14 @@ void SMspp::prepend_spp(l_spp *sp){
 
 	sp->next = species;
 	species = sp;
+	index[std::string(sp->S)] = sp;   // newest wins, as with a head-first list search
 
 }
 
 l_spp * SMspp::find_spp(char *S, const int maxl0){
 
-	l_spp *p;
-	//First, check if it's in the list:
-	for(p=species;p!=NULL;p=p->next){
-		if(!strcmp(p->S,S))
-			return p;
-	}
-
-	return NULL;
+	auto it = index.find(std::string(S));
+	return it==index.end() ? NULL : it->second;
 
 }
 
@@ -248,6 +243,7 @@ int SMspp::clear_list(){
 		ps = n;
 	}
 	species = NULL;
+	index.clear();
 	spp_count=1;  // Why is this 1??
 	return 0;
 }

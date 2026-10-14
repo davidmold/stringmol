@@ -109,9 +109,14 @@ struct s_parent{
 	s_parent 	*next;	//Pointer to the next data structure
 };
 
+#include <unordered_map>
+#include <string>
 class SMspp {
 public:
 	l_spp *species; 		//The list of species
+	/* PERF: sequence -> newest species with that sequence. Kept in sync by prepend_spp and
+	 * clear_list (the only places the list changes); species strings are never modified. */
+	std::unordered_map<std::string, l_spp *> index;
 	long int spp_count; 	//The current number of species
 
 	SMspp();

@@ -195,7 +195,7 @@ void stringPM::testprop(){
 /* Make sure the masseage memory is freed - so you can't do printf("%s",parse_error(1)); - the memory will not be freed.
  *
  */
-char * stringPM::parse_error(int errno){
+char * stringPM::parse_error(int errcode){
 
 	char * message;
 	message = (char *) malloc(100*sizeof(char));
@@ -4289,12 +4289,13 @@ void stringPM::free_lspp(l_spp *sp){
 int stringPM::update_lineage(s_ag *p, char sptype, int add, l_spp *paspp, l_spp * ppspp, int mass){
 
 	l_spp *sp;
-	sp = spl->species;
 	int found=0;
 	int novel=0;
 
+	/* PERF: hashed lookup instead of scanning every species ever seen */
+	sp = spl->find_spp(p->S,maxl0);
 	while(sp!=NULL&&!found){
-		if(!strcmp(sp->S,p->S)){//we've found a match on the string
+		{//we've found a match on the string
 			found=sp->spp;
 			if(add){
 				//Need to check whether this is a dissociating partner in a reaction that has changed:
