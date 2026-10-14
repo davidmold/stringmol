@@ -5,6 +5,9 @@
 #   ./sm status                     list runs and their latest step
 #   ./sm logs NAME                  tail a run's output
 #   ./sm stop NAME                  stop a run (output is kept)
+#   ./sm bind PAIRS                 binding probabilities + copier role for molecule pairs
+#   ./sm react PAIRS [MAXSTEPS]     run each pairwise reaction to completion (mutation off)
+# PAIRS file lines: "R name seq" (replicase) or "P name seq" (other)
 set -euo pipefail
 cd "$(dirname "$0")"
 RUNS="$PWD/runs"
@@ -32,6 +35,12 @@ case "${1:-}" in
     docker logs --tail 20 -f "stringmol-${2:?run name}" ;;
   stop)
     docker stop "stringmol-${2:?run name}" ;;
+  bind|react)
+    f="${2:?pairs file}"; [ -f "$f" ] || { echo "no such file: $f" >&2; exit 1; }
+    tool=sm-bind; [ "$1" = react ] && tool=sm-react
+    docker compose run --rm -T --entrypoint "$tool" -v "$(realpath "$f"):/pairs.txt:ro" smspatial \
+      /opt/stringmol/config/spatial_stringmol_v2.0.3.conf /pairs.txt ${3:-} 2>&1 \
+      | grep -v -e '^Reverting' -e '^Number of agents' -e '^No MIS' -e '^File name' -e '^$' ;;
   *)
-    sed -n 2,7p "$0"; exit 1 ;;
+    sed -n 2,11p "$0"; exit 1 ;;
 esac

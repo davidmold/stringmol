@@ -1,5 +1,6 @@
 runs/
-probe/
+probe/probe
+probe/react
 release/
 debug/
 **/*.o

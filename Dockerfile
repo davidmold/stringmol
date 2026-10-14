@@ -6,7 +6,11 @@ FROM nvidia/cuda:13.2.0-devel-ubuntu24.04@sha256:f9492f2eea77fbc3d0c14fa8738f359
 WORKDIR /opt/stringmol
 COPY src/ src/
 COPY config/ config/
-RUN mkdir -p release && cd src && make all
+COPY probe/*.cpp probe/
+RUN mkdir -p release && cd src && make all \
+ && OBJS=$(ls ../release/*.o | grep -v -e stringmol.o -e smspatial.o -e signalSM.o) \
+ && g++ -O2 -std=c++11 -w -I. ../probe/probe.cpp $OBJS -lm -o /usr/local/bin/sm-bind \
+ && g++ -O2 -std=c++11 -w -I. ../probe/react.cpp $OBJS -lm -o /usr/local/bin/sm-react
 
 # Runs execute in a mounted directory containing run.conf; all output lands there.
 WORKDIR /runs

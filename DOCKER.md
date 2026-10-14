@@ -21,5 +21,6 @@ Notes
 - A full 1M-step run writes ~10 GB (a full state dump every 100 steps).
 - The step loop is hard-coded to 1,000,000 steps in `src/smspatial.cpp`; NSTEPS
   in the config is ignored. Step 90,001 prints a block of RNG debug lines.
+- Probes: `./sm bind probe/pairs.txt` and `./sm react probe/pairs3.txt` (binding table; full reactions with mutation off).
 - `RANDSEED` written into out1_*.conf dumps is garbage (upstream bug); the
   actual seed comes from the input config.
