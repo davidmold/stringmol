@@ -133,6 +133,7 @@ void stringPM::preset(){
 
 	nowhead = NULL;
 	nexthead = NULL;
+	cnow.valid=false; cnext.valid=false;
 
 	//note - it's possible that this'll be called twice - but will do no harm!
 	agents_base::preset();
@@ -1508,13 +1509,54 @@ int stringPM::countcomp(char E, char P){
 }
 
 
+stringPM::ag_cache * stringPM::cache_for(s_ag **list){
+	if(list == &nowhead) return &cnow;
+	if(list == &nexthead) return &cnext;
+	return NULL;
+}
+
+static int sm_verify = -1;
+
+void stringPM::cache_ensure(ag_cache *c, s_ag *head){
+	if(sm_verify<0) sm_verify = getenv("STRINGMOL_VERIFY")!=NULL;
+	bool ok = c->valid;
+	if(ok){
+		if(c->v.empty()) ok = (head==NULL);
+		else ok = (c->v.front()==head);
+	}
+	if(ok && sm_verify){
+		size_t i=0; s_ag *p=head;
+		for(;p!=NULL && i<c->v.size();p=p->next,i++) if(c->v[i]!=p){ok=false;break;}
+		if(ok && (p!=NULL || i!=c->v.size())) ok=false;
+		if(!ok){ size_t L=0; for(s_ag*q=head;q;q=q->next) L++; printf("STRINGMOL_VERIFY: list cache drift detected (%s) cached=%zu actual=%zu front_ok=%d at=%zu\n", c==&cnow?"now":"next", c->v.size(), L, (int)(!c->v.empty() && c->v.front()==head), i); fflush(stdout); }
+	}
+	if(!ok){
+		c->v.clear();
+		for(s_ag *p=head;p!=NULL;p=p->next) c->v.push_back(p);
+		c->valid = true;
+	}
+}
+
 int stringPM::append_ag(s_ag **list, s_ag *ag){
 	s_ag *pag;
+	ag_cache *c = cache_for(list);
 
-	//printf("appending: list = %p, ag = %p\n",*list,ag);
+	if(c!=NULL){
+		cache_ensure(c,*list);
+		if(*list==NULL){
+			*list=ag;
+		}
+		else{
+			pag = c->v.back();
+			pag->next = ag;
+			ag->prev = pag;
+		}
+		for(s_ag *q=ag;q!=NULL;q=q->next) c->v.push_back(q);
+		return 0;
+	}
+
 	if(*list==NULL){
 		*list=ag;
-		//printf("appended: list = %p, ag = %p\n",*list,ag);
 	}
 	else{
 		pag = *list;
@@ -1560,6 +1602,22 @@ int stringPM::extract_ag(s_ag **list, s_ag *ag){
 	}
 	ag->prev=NULL;
 	ag->next=NULL;
+	{
+		/* The original code sometimes extracts an agent via the "wrong" list head
+		 * (it unlinks through prev/next, so it works on either list). Mirror that:
+		 * remove it from whichever cache actually holds it. */
+		ag_cache *cs[2] = { &cnow, &cnext };
+		ag_cache *c = cache_for(list);
+		if(c==&cnext){ cs[0]=&cnext; cs[1]=&cnow; }
+		bool found=false;
+		for(int k=0;k<2 && !found;k++){
+			if(!cs[k]->valid) continue;
+			for(size_t i=cs[k]->v.size();i-->0;){
+				if(cs[k]->v[i]==ag){ cs[k]->v.erase(cs[k]->v.begin()+i); found=true; break; }
+			}
+		}
+		if(!found){ cnow.valid=false; cnext.valid=false; }
+	}
 	return 0;
 }
 
@@ -1639,6 +1697,16 @@ int stringPM::nagents(s_ag *head, int state){
 
 
 s_ag * stringPM::rand_ag(s_ag *head, int state){
+	if(state==-1 && head!=NULL && head==nowhead){
+		cache_ensure(&cnow,head);
+		int count = (int) cnow.v.size();
+		s_ag *pag=NULL;
+		while(pag==NULL){
+			int pos = (int) (count * rand0to1());
+			pag = (pos<count) ? cnow.v[pos] : NULL;
+		}
+		return pag;
+	}
 	int count = nagents(head,state);
 	int i,pos;
 	s_ag *pag,**arr;
@@ -3911,6 +3979,8 @@ void stringPM::update(){
 	//s_ag *pag;
 	nowhead = nexthead;
 	nexthead = NULL;
+	cnow.v.swap(cnext.v); cnow.valid = cnext.valid;
+	cnext.v.clear(); cnext.valid = true;
 	//pag = nowhead;
 	//while(pag!=NULL){
 	//	//move_ag(pag);

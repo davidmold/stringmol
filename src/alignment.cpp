@@ -210,14 +210,31 @@ int swt_index(int c,swt *T){
 
 
 
+/* PERF: cached symbol->row lookup. Same result as swt_index(); falls back to it
+ * (including its error message) for symbols not in the key. */
+static inline int swt_index_fast(int c, swt *T){
+	static swt *cT = NULL;
+	static char *ckey = NULL;
+	static int cN = -1;
+	static int idx[256];
+	if(T != cT || T->key != ckey || T->N != cN){
+		for(int k=0;k<256;k++) idx[k] = -1;
+		for(int i=T->N-1;i>=0;i--) idx[(unsigned char)T->key[i]] = i; //first match wins, as in swt_index
+		cT = T; ckey = T->key; cN = T->N;
+	}
+	int r = idx[(unsigned char)c];
+	if(r < 0) return swt_index(c,T);
+	return r;
+}
+
 float wT(int a, int b,swt *T){
 
 	int ai,bi;
 
 	if(a)
-		ai = swt_index(a,T);
+		ai = swt_index_fast(a,T);
 	if(b)
-		bi = swt_index(b,T);
+		bi = swt_index_fast(b,T);
 
 	if(a<0 || b<0){
 		printf("swt_index returned an error w()\n");fflush(stdout);

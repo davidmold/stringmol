@@ -43,6 +43,7 @@ typedef struct td_smsprun{
 
 
 
+#include <vector>
 class stringPM: public agents_base
 {
 
@@ -53,6 +54,13 @@ public:
 
 	s_ag *nowhead;
 	s_ag *nexthead;
+
+	/* PERF: ordered mirrors of nowhead/nexthead for O(1) append and indexed random pick.
+	 * The linked lists remain the source of truth; mirrors are rebuilt lazily if they drift. */
+	struct ag_cache { std::vector<s_ag *> v; bool valid; };
+	ag_cache cnow, cnext;
+	ag_cache * cache_for(s_ag **list);
+	void cache_ensure(ag_cache *c, s_ag *head);
 
 	//l_spp *species;
 	SMspp *spl;

@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <unordered_set>
 
 #include "mt19937-2.h"
 #include "randutil.h"
@@ -1653,10 +1654,13 @@ int smspatial_step(stringPM *A, smsprun *run){
 
 
 	//#ifdef DEBUG
+	/* PERF: membership set built once per step instead of a list walk per grid cell. */
+	std::unordered_set<s_ag *> nowset;
+	for(s_ag *q=A->nowhead;q!=NULL;q=q->next) nowset.insert(q);
 	for(int x=0;x<run->gridx;x++){
 		for(int y=0;y<run->gridy;y++){
 			if(run->grid[x][y]!=NULL){
-				if(!(A->ag_in_list(A->nowhead,run->grid[x][y]))){
+				if(!nowset.count(run->grid[x][y])){
 					printf("Agent species %d not in nowhead at %d, %d\n", run->grid[x][y]->spp->spp, x, y);
 				}
 			}
