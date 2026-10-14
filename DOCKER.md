@@ -25,3 +25,6 @@ Notes
 - RANDSEED is honoured from commit "honour RANDSEED" onward. Upstream never
   seeded the RNG in smspatial, so every earlier run (including ref_v2.0.3)
   used the Mersenne Twister default seed; reproduce those with RANDSEED 4357.
+- Viewer: `./sm viz NAME` (or `python3 viz/build.py RUN_DIR`) writes a self-contained
+  `viewer.html` into the run folder: the grid animated through time, top lineages
+  coloured, and a scrubbable population timeline. Rebuild it to pick up new steps.
