@@ -36,6 +36,7 @@ for s in steps:
             q = seq if p[0] == 'REACTION_ACTIVE' else p[2]
             mols.append((x, y, q)); seq = None
     frames.append((s, mols))
+    if not mols: break          # extinct: stop at the first empty frame
     for _, _, q in mols:
         abund[q] += 1; first.setdefault(q, s)
 top = [q for q, _ in abund.most_common(NTOP)]
