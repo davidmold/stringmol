@@ -9,11 +9,14 @@ out = sys.argv[2] if len(sys.argv) > 2 else os.path.join(run, 'viewer.html')
 every = int(sys.argv[3]) if len(sys.argv) > 3 else 500
 NTOP = 12
 
+COPYLOOP = re.compile(r'=+\?>')
 def cls(s):
     if '$' not in s: return 2                      # binding region only, no code
-    pre = s[:s.find('$')]
-    if '=?>' in s and '%}' in s and len(pre) >= 15: return 1   # replicase
-    return 3                                       # other (code-only, broken, run-ons)
+    pre = s.find('$')
+    loop = COPYLOOP.search(s) is not None
+    if loop and '%}' in s and pre >= 15: return 1  # replicase: binding region + copy loop
+    if loop and pre < 5: return 3                  # code-only replicator: binds through its code
+    return 4                                       # other (broken pieces, run-on copies)
 
 def slim_frames():
     # slim output: species.tsv (id -> sequence) + grid.snap (zlib frames of uint32 species ids)
@@ -70,7 +73,7 @@ if slim:
             abund[q] += 1; first.setdefault(q, s)
         if not mols: break
 top = [q for q, _ in abund.most_common(NTOP)]
-topidx = {q: i + 4 for i, q in enumerate(top)}
+topidx = {q: i + 5 for i, q in enumerate(top)}
 enc, series = [], []
 for s, mols in frames:
     g = bytearray(gx * gy)
@@ -79,9 +82,9 @@ for s, mols in frames:
         k = cls(q); c[k] += 1
         if k == 1: lens.append(len(q))
         v = topidx.get(q, k); g[y * gx + x] = v
-        if v >= 4: tc[v - 4] += 1
+        if v >= 5: tc[v - 5] += 1
     enc.append(base64.b64encode(bytes(g)).decode())
-    series.append({'t': s, 'rep': c[1], 'frag': c[2], 'oth': c[3],
+    series.append({'t': s, 'rep': c[1], 'frag': c[2], 'code': c[3], 'oth': c[4],
                    'replen': round(sum(lens) / len(lens), 1) if lens else None,
                    'top': [tc[i] for i in range(len(top))]})
 data = json.dumps({'name': os.path.basename(os.path.abspath(run)), 'gx': gx, 'gy': gy, 'every': every,

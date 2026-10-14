@@ -19,6 +19,7 @@
   --faint: #55656a;
   --rep: #5fc4b0;
   --frag: #e0a94a;
+  --code: #6fa8f0;
   --oth: #a68ad8;
   --len: #f1f1e6;
   --font-ui: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
@@ -90,7 +91,8 @@ button:focus-visible, select:focus-visible, .lin:focus-visible, #chart:focus-vis
       <div class="misc">
         <div><i class="sw" style="width:12px;height:12px;border-radius:2px;background:var(--rep);opacity:.45"></i>Other replicases</div>
         <div><i class="sw" style="width:12px;height:12px;border-radius:2px;background:var(--frag);opacity:.45"></i>Other binding-region fragments (no code)</div>
-        <div><i class="sw" style="width:12px;height:12px;border-radius:2px;background:var(--oth);opacity:.45"></i>Other molecules (broken, code-only, run-on copies)</div>
+        <div><i class="sw" style="width:12px;height:12px;border-radius:2px;background:var(--code);opacity:.45"></i>Other code-only replicators (bind through their copy code)</div>
+        <div><i class="sw" style="width:12px;height:12px;border-radius:2px;background:var(--oth);opacity:.45"></i>Other molecules (broken pieces, run-on copies)</div>
       </div>
     </aside>
   </div>
@@ -101,6 +103,7 @@ button:focus-visible, select:focus-visible, .lin:focus-visible, #chart:focus-vis
       <div class="legend">
         <span><i style="background:var(--rep)"></i>Replicases</span>
         <span><i style="background:var(--frag)"></i>Fragments</span>
+        <span><i style="background:var(--code)"></i>Code-only replicators</span>
         <span><i style="background:var(--oth)"></i>Other</span>
         <span><i class="ln" style="background:var(--len)"></i>Mean replicase length (right axis)</span>
       </div>
@@ -130,8 +133,8 @@ button:focus-visible, select:focus-visible, .lin:focus-visible, #chart:focus-vis
   // Lineage colours: spaced hues, bright on the dark stage. Classes 1-3 (non-top) are muted.
   const hues = [168, 38, 270, 205, 330, 95, 15, 240, 60, 290, 130, 0];
   const linRGB = D.species.map((_, i) => hsl(hues[i % hues.length], 0.72, i < 12 ? 0.6 : 0.45));
-  const cls = { 1: [44, 92, 84], 2: [104, 80, 44], 3: [78, 66, 102] };
-  const clsName = { 1: 'replicase', 2: 'binding fragment', 3: 'other' };
+  const cls = { 1: [44, 92, 84], 2: [104, 80, 44], 3: [44, 74, 112], 4: [78, 66, 102] };
+  const clsName = { 1: 'replicase', 2: 'binding fragment', 3: 'code-only replicator', 4: 'other' };
 
   function hsl(h, s, l) {
     const k = n => (n + h / 30) % 12, a = s * Math.min(l, 1 - l);
@@ -153,7 +156,7 @@ button:focus-visible, select:focus-visible, .lin:focus-visible, #chart:focus-vis
     for (let y = 0; y < GY; y++) for (let x = 0; x < GX; x++) {
       const v = fr[y * GX + x];
       let c = [5, 8, 9];
-      if (v >= 4) { c = linRGB[v - 4]; if (focus >= 0 && v - 4 !== focus) c = c.map(q => q * 0.18 + 6); }
+      if (v >= 5) { c = linRGB[v - 5]; if (focus >= 0 && v - 5 !== focus) c = c.map(q => q * 0.18 + 6); }
       else if (v > 0) { c = cls[v]; if (focus >= 0) c = c.map(q => q * 0.3 + 4); }
       for (let dy = 0; dy < SC; dy++) {
         let o = ((y * SC + dy) * GX * SC + x * SC) * 4;
@@ -172,7 +175,7 @@ button:focus-visible, select:focus-visible, .lin:focus-visible, #chart:focus-vis
     const x = Math.floor((e.clientX - r.left) / r.width * GX), y = Math.floor((e.clientY - r.top) / r.height * GY);
     if (x < 0 || y < 0 || x >= GX || y >= GY) return;
     const v = frames[cur][y * GX + x];
-    probe.textContent = `(${x}, ${y})  ` + (v === 0 ? 'empty' : v >= 4 ? `lineage ${v - 3} · ${clsName[D.species[v - 4].cls]} · ${D.species[v - 4].len} symbols` : clsName[v]);
+    probe.textContent = `(${x}, ${y})  ` + (v === 0 ? 'empty' : v >= 5 ? `lineage ${v - 4} · ${clsName[D.species[v - 5].cls]} · ${D.species[v - 5].len} symbols` : clsName[v]);
   });
   grid.addEventListener('mouseleave', () => { probe.textContent = 'Hover the grid to inspect a cell'; });
 
@@ -198,7 +201,7 @@ button:focus-visible, select:focus-visible, .lin:focus-visible, #chart:focus-vis
   // ---- timeline ----
   const chart = document.getElementById('chart'), cx = chart.getContext('2d');
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-  const maxTot = Math.max(...D.series.map(s => s.rep + s.frag + s.oth));
+  const maxTot = Math.max(...D.series.map(s => s.rep + s.frag + (s.code || 0) + s.oth));
   const lens = D.series.map(s => s.replen).filter(v => v);
   const lenMin = Math.floor(Math.min(...lens) / 5) * 5, lenMax = Math.ceil(Math.max(...lens) / 5) * 5;
   const pad = { l: 46, r: 40, t: 8, b: 22 };
@@ -226,14 +229,14 @@ button:focus-visible, select:focus-visible, .lin:focus-visible, #chart:focus-vis
     const tmax = D.series[F - 1].t, xs = niceStep(tmax, 8);
     for (let t = 0; t <= tmax; t += xs) { const i = t / tmax * (F - 1); cx.fillText(t >= 1000 ? (t / 1000) + 'k' : t, X(i), H - pad.b + 6); }
     // stacked areas
-    const layers = [['rep', '--rep'], ['frag', '--frag'], ['oth', '--oth']];
+    const layers = [['rep', '--rep'], ['frag', '--frag'], ['code', '--code'], ['oth', '--oth']];
     const base = new Array(F).fill(0);
     layers.forEach(([k, col]) => {
       cx.beginPath();
-      for (let i = 0; i < F; i++) cx.lineTo(X(i), Y(base[i] + D.series[i][k]));
+      for (let i = 0; i < F; i++) cx.lineTo(X(i), Y(base[i] + (D.series[i][k] || 0)));
       for (let i = F - 1; i >= 0; i--) cx.lineTo(X(i), Y(base[i]));
       cx.closePath(); cx.globalAlpha = focus >= 0 ? .25 : .7; cx.fillStyle = css(col); cx.fill(); cx.globalAlpha = 1;
-      for (let i = 0; i < F; i++) base[i] += D.series[i][k];
+      for (let i = 0; i < F; i++) base[i] += (D.series[i][k] || 0);
     });
     // focused lineage
     if (focus >= 0) {
@@ -264,7 +267,7 @@ button:focus-visible, select:focus-visible, .lin:focus-visible, #chart:focus-vis
     cur = Math.max(0, Math.min(F - 1, i));
     const s = D.series[cur];
     document.getElementById('cStep').textContent = fmt(s.t);
-    document.getElementById('cMol').textContent = fmt(s.rep + s.frag + s.oth);
+    document.getElementById('cMol').textContent = fmt(s.rep + s.frag + (s.code || 0) + s.oth);
     document.getElementById('cRep').textContent = fmt(s.rep);
     document.getElementById('cLen').textContent = s.replen ?? '–';
     counts.forEach((el, j) => { el.textContent = fmt(s.top[j]); el.classList.toggle('zero', !s.top[j]); });
