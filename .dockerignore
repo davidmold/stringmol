@@ -1,0 +1,8 @@
+runs/
+probe/
+release/
+debug/
+**/*.o
+src/smspatial
+src/stringmol
+.git

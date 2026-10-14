@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Operator wrapper for Stringmol runs (one detached container per run).
+#   ./sm build                      build the image
+#   ./sm start NAME CONF            copy CONF to runs/NAME/run.conf and start a run
+#   ./sm status                     list runs and their latest step
+#   ./sm logs NAME                  tail a run's output
+#   ./sm stop NAME                  stop a run (output is kept)
+set -euo pipefail
+cd "$(dirname "$0")"
+RUNS="$PWD/runs"
+
+case "${1:-}" in
+  build)
+    docker compose build ;;
+  start)
+    name="${2:?run name}"; conf="${3:?config file}"
+    [ -f "$conf" ] || { echo "no such config: $conf" >&2; exit 1; }
+    [ -e "$RUNS/$name" ] && { echo "run '$name' already exists in $RUNS" >&2; exit 1; }
+    mkdir -p "$RUNS/$name"
+    cp "$conf" "$RUNS/$name/run.conf"
+    docker compose run -d --name "stringmol-$name" -v "$RUNS/$name:/runs" smspatial run.conf >/dev/null
+    echo "started stringmol-$name -> $RUNS/$name" ;;
+  status)
+    for d in "$RUNS"/*/; do
+      [ -d "$d" ] || continue
+      n=$(basename "$d")
+      st=$(docker inspect -f '{{.State.Status}}' "stringmol-$n" 2>/dev/null || echo "gone")
+      last=$(docker logs --tail 50 "stringmol-$n" 2>/dev/null | grep -a '^Step' | tail -1 || true)
+      printf '%-24s %-8s %s\n' "$n" "$st" "${last:-}"
+    done ;;
+  logs)
+    docker logs --tail 20 -f "stringmol-${2:?run name}" ;;
+  stop)
+    docker stop "stringmol-${2:?run name}" ;;
+  *)
+    sed -n 2,7p "$0"; exit 1 ;;
+esac

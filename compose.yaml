@@ -1,0 +1,9 @@
+# CPU-only for now: no GPU reservation, so it never competes with llm-switch services.
+# When a GPU build exists it gets its own service plus llm-switch integration.
+services:
+  smspatial:
+    build: .
+    image: stringmol-cpu:local
+    user: "1000:1000"
+    init: true
+    restart: "no"
