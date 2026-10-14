@@ -249,6 +249,12 @@ int main(int argc, char *argv[]) {
 		//printf("sdl rect updated\n",A.extit);fflush(stdout);
 #endif
 
+		/* FIX: stop once the population is extinct, after the next 100-step dump so the
+		 * final (empty) state is on disk. Upstream ran on to step 1M on an empty grid. */
+		if(ct==0 && !(A.extit%100)){
+			printf("EXTINCT at step %d\n",(int) A.extit);
+			break;
+		}
 	}
 
 	printf("FINISHED smspatial\n");
