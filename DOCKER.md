@@ -22,5 +22,6 @@ Notes
 - The step loop is hard-coded to 1,000,000 steps in `src/smspatial.cpp`; NSTEPS
   in the config is ignored. Step 90,001 prints a block of RNG debug lines.
 - Probes: `./sm bind probe/pairs.txt` and `./sm react probe/pairs3.txt` (binding table; full reactions with mutation off).
-- `RANDSEED` written into out1_*.conf dumps is garbage (upstream bug); the
-  actual seed comes from the input config.
+- RANDSEED is honoured from commit "honour RANDSEED" onward. Upstream never
+  seeded the RNG in smspatial, so every earlier run (including ref_v2.0.3)
+  used the Mersenne Twister default seed; reproduce those with RANDSEED 4357.

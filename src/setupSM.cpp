@@ -1403,7 +1403,7 @@ void get_unused_fn(char *fn){
 /* Another attempt to do randseed properly
  *
  */
-unsigned long init_randseed(char *fn, int printrandseed=0){
+unsigned long init_randseed(char *fn, int printrandseed){
 
 	//TODO: more work needed with the rand seed and rng logic!!
 	unsigned long seedin{42};
@@ -1810,7 +1810,7 @@ int smspatial(int argc, char *argv[]) {
 	smsprun *run{};
 	run = NULL;
 
-	A.randseed = init_randseed(argv[2]);
+	A.randseed = init_randseed(argv[2],0);
 	smspatial_init(argv[2],&A,&run,1);
 
 	int bt{0},ct{0};
@@ -1821,7 +1821,7 @@ int smspatial(int argc, char *argv[]) {
 	//that way you don't reinitialize the seed after (perhaps) positioning the
 	//agents on the grid
 	//
-	//A.randseed = init_randseed(argv[2]);
+	//A.randseed = init_randseed(argv[2],0);
 
 
 	//reload file: should have identical settings to the input conig:

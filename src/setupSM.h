@@ -60,6 +60,7 @@
 
 	/* Standard initialisation of random number seed */
 	void init_randseed_config(int argc, char *argv[]);
+	unsigned long init_randseed(char *fn, int printrandseed);
 
 	/* Print parameters of the trial */
 	void print_params(stringPM *A, int ntrials, int nsteps);

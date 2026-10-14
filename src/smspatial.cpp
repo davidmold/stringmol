@@ -82,6 +82,10 @@ int main(int argc, char *argv[]) {
 	smsprun *run;
 	run = NULL;
 
+	/* FIX: upstream never seeded the RNG in this entry point, so every run used the
+	 * Mersenne Twister default seed (4357) whatever RANDSEED said. Honour RANDSEED.
+	 * Runs made before this fix are reproduced exactly with RANDSEED 4357. */
+	A.randseed = init_randseed(argv[2],0);
 	smspatial_init(argv[2],&A,&run,1);
 
 	int bt=0,ct=0;
