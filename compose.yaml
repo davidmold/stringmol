@@ -1,5 +1,5 @@
-# CPU-only for now: no GPU reservation, so it never competes with llm-switch services.
-# When a GPU build exists it gets its own service plus llm-switch integration.
+# CPU-only: no GPU reservation. Runs as uid/gid 1000 so run output is owned by the
+# usual first user; change `user` if yours differs (see `id -u`).
 services:
   smspatial:
     build: .

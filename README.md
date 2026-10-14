@@ -1,222 +1,125 @@
-stringmol
-=========
-
-Automata Chemistry
-
-
-url
-===
-
-https://github.com/franticspider/stringmol.git
-
-
-Hello. You have found brief instructions to install, compile and run stringmol version 0.2.2. Please read carefully, and mail any comments or questions to sjh436@gmail.com.
-
-If you are new to stringmol, please also see the technical report "smtr0.2.pdf" included in the same directory as this document
-
-BUILDING STRINGMOL 
-==================
-
-THE QUICK WAY
--------------
-
-Type the following at the command prompt:
-
-    sh install
- 
- 
-FURTHER INFORMATION
--------------------
-
-Stringmol only builds in linux. Maybe one day we'll make it work on other platforms, but to be honest we are more interested in deploying it on the web and running experiments. email sjh436@gmail.com if this policy is causing you problems.
-
-To compile stringmol on your system:
-
-    cd src
-    make all
-
-should build an executable called stringmol in that directory. Do NOT run stringmol in there - it'll just make a mess. 
-Instead, read the next section and do what it recommends. 
-
-RUNNING STRINGMOL
-=================
-
-It is NOT a good idea to run stringmol from the directory it was compiled into, since a lot of files will be generated and it'll be hard to work out what was generated and what is already there. The best thing to do is to create a folder for runs, and execute stringmol by entering the relative path to it. 
-
-Let's assume that we are starting from the directory containing this README. We recommend you try the following:
-
-    mkdir test1
-    cd test1
-    ../src/stringmol
-
-If all goes well, you'll get the following output:
-
-	USAGE for TestSM
-
-	The first argument after TestSM should be the trial type,
-        followed by the arguments needed to run it
-
-	TRIAL TYPES LIST (NUMBERS IN BRACKETS ARE EXPERIMENTAL!)
-	NAME          TRIAL No:   ARGUMENTS
-
-	1 on 1            0       .conf (.mtx)
-	ALife XII         1       .conf (.mtx)
-	Con Pop           2       .conf (.mtx)
-	Origlife         (3)
-	Comass GA        (4)
-	Joinsplists      (5)
-	Energetic ALXII  (6)
-	swdist           (7)
-	Comass ALXII     (8)
-	speigmonst       (9)
-	Check setup       10      .conf (.mtx)
-	Finished!
-
-This shows the current ways that stringmol can be run. More details below.
-
-RUNNING STRINGMOL
-=================
-
-Firstly, it is important to know that not all of the trial types above actually work. If you know a little C/C++ programming, you can look through all the options if you want, or mail sjh436@gmail.com for more info. In this section, we are going to go through the "tested" options - those not in brackets in the list above.
-
-The general method for running these trial is to type the following
-
-PATH/stringmol TTYPE ARGS
-
-where 'PATH' is the relative or absolute path to the strignmol-exe folder (e.g. '/home/simon/stringmol'), 'TTYPE' is the type of trial you want to run (e.g. '1'), and ARGS are the other arguments that are needed to run that particular trial. Arguments in brackets are optional.
-
-For the currently working trials, the arguments are all the same. The first argument is the path to a config file that contains the details of the trial, and the second optional argument is to an 'mtx' file - the substitution matrices that are used in calculating alignments and creating mutations. A couple of examples of these files are contained in the 'config' subdirectory. We will one day make a guide to these files available. In the meantime, email sjh436@gmail.com with any questions. 
-
-TTYPE 10: Check setup
---------------------
-
-This option is there purely to check if your config file has been read
-as you intended. It is a new feature in stringmol0.2.2. 
-
-To test this out, navigate to the folder containing this README, and type the following:
-
-$ mkdir test10; cd test10
-$ ../src/stringmol 10 ../config/test_replicase.conf
-
-The output should look like:
-
-	Hello World! Let's run the stringmol tests!
-	Argc = 3
-
-	BEFORE loading the config, params are:
-	Non-stringPM variables:
-	NTRIALS     not set - the default value would be used if needed
-	NSTEPS      not set - the default value would be used if needed
-	CELLRAD     2500.000000 (vcellrad = 0.000000)
-	AGRAD       10.000000
-	ENERGY      0
-	NSTEPS      -0.000012
-	BLOSUM      0 size table loaded
-	MUTATE      indelrate = 0.000000; subrate = 0.000000
-	DECAY       0.000000
-	MAXLEN      2000, (maxl0 = 2001)
-	ESTEP       20
-	..c'est ca!
-
-	NTRIALS not specified;
-	Setting NTRIALS to 1
-	NTRIALS = 1
-	Setting NSTEPS to 1200000000
-	NSTEPS = 1200000000
-	CELLRAD = 2500.000000
-	AGRAD = 10.000000
-	ENERGY = 0.000000
-	NSTEPS = 1200000000.000000
-	ERROR 60 on loading table
-	No mutation rate found in config file
-	Using ALifeXII values instead
-
-
-	AFTER loading the config, params are:
-	Non-stringPM variables:
-	NTRIALS     1
-	NSTEPS      1200000000
-	CELLRAD     2500.000000 (vcellrad = 2500.000000)
-	AGRAD       10.000000
-	ENERGY      0
-	NSTEPS      1200000000.000000
-	BLOSUM      0 size table loaded
-	MUTATE      indelrate = 0.000100; subrate = 0.000100
-	DECAY       0.000237
-	MAXLEN      2000, (maxl0 = 2001)
-	ESTEP       20
-	..c'est ca!
-
-	Finished!
-
-If you open the file config/test_replicase.conf, you'll see that the values in the config file correspond to the entries following the text "AFTER loading the config..". This is handy for checking any config files that you build. 
-
-A new feature with version 0.2.2 is the ability to specify the substitution matrix at the command line. This was done to make stringmol available on youShare more easily - the .mtx file can be specified directly, rather than being fetched out of the .conf file. This may be easier for some manual configurations too. Note that since this modification was designed for youShare, runs of stringmol will not be interactive where the extra argument is used to specify the .mtx file - this is only important for TType 0, where the user presses the space bar to step through a reaction - if three arguments are present, the 1 on 1 simulation just runds until limits are reached (see below)
-
-TTYPE 0: 1 on 1
----------------
-
-This option allows you to see how one molecule reacts with another. To test it, starting from the stringmol directory where this README is located, type the following:
-
-$ mkdir test;cd test
-$ ../src/stringmol 0 ../config/test_1on1.conf ../config/ALXII.mtx > out.txt
-
-This will create a file called 'out.txt' that will show each step of a reaction between the two molecules listed in the file test_1on1.conf, located in the config directory. 
-
-Should you want to step through the reaction, you'll need to enter the correct file path for the .mtx file in the .conf file that you use - see the line beginning with the keyword "SUBMAT" in 'test_1on1.conf'. Once this is done, the command is:
-
-$ mkdir test;cd test
-$ ../src/stringmol 0 ../config/test_1on1.conf
-
-you can then "step through" a reaction between molecules by repeatedly pressing the space bar. 
-
-We'd like to improve this facility. Please send feedback to sjh436@gmail.com
-
-TTYPE 1: Alife XXII
--------------------
-
-This is the grand-daddy stringmol program - running a "container" of molecular reactions together. We have included a config file with the same configuration as for the paper "ALxii_dif.pdf" that is included in the tarball. 
-
-$ mkdir test;cd test
-$ ../src/stringmol 1 ../../config/ALXII.conf ../../config/ALXII.mtx
-
-TTYPE 2: Con Pop
-----------------
-
-This is an unpublished trial type, in which a set of containers of molecules are run. If the population of molecules in a container goes extinct, half the contents of another randomly-selected container are moved into the empty one. 
-
-You can test this trial type using the same configuration for TTYPE 1 using:
-
-$ mkdir test;cd test
-$ ../src/stringmol 2 ../../config/ALXII.conf ../../config/ALXII.mtx
-
-Currently only four containers are run, but we have done trials where there are 16 (C programmers can set this by changing the value of NCON on line 1565 of the file TestSM.cpp, and recompiling). 
-
-This trial runs fairly reliably, but there may need to be changes in the output files to make sense of what is going on. At the moment, the output to screen after the config files have loaded looks like:
-
-	0	0	1	2	3
-	Count:	150	150	150	150
-	Printing species list
-	1000	0	1	2	3
-	Count:	165	172	172	164
-	2000	0	1	2	3
-	Count:	198	222	214	181
-	3000	0	1	2	3
-
-A list of species that the simulations have created is printed every 10000 time steps - the line "Printing species list" indicates this. Apart from this, there are alternating lines. The first line (e.g. "2000	0	1	2	3" indicates the timestep, and the number of each container.
-The second line (e.g. "Count:	198	222	214	181") indicates the total number of molecules in each container.
-
-
-# Issues
-
-There are a number of issues that need to be addressed to improve stringmol. These features all currently work 99% of the time, but for longer simulations, the reacions explore edge-cases in the stringmol language that aren't fully explored/documented/understood. Consequences are: 
-
-- **Repeatibility:** Although we are recording the system state and the state of the RNG, restarts in deeper runs do not appear to be repeatable
-- **Logging:** Species lists are fairly comprehensive, but if a molecule is created just before a run terminates, its origins may be lost 
-- **Zero percent binds:** in deeper runs, a situation emerges where a small percentage of reactions (typically about 0.1%) have zero probability of binding
-- **`SOFT_SEARCH` poorly defined** `HSearch` appears *not* to be stochastic at present
-
-
-
-
-
+# Stringmol, fast
+
+A maintained fork of [Stringmol](https://github.com/franticspider/stringmol), the automata
+chemistry by Simon Hickinbotham, Susan Stepney and colleagues at the University of York.
+In Stringmol, molecules are strings of opcodes that bind by sequence alignment and then
+run as programs that copy, cut and edit each other. The papers listed below describe the
+chemistry; `README-upstream.md` is the original README.
+
+This fork targets the **spatial** simulator (`smspatial`). The chemistry is unchanged:
+every change below was checked to give **byte-identical results** to the original for the
+same seed. What changes is speed, output size, a few real bugs, and some tools for looking
+at runs.
+
+## Why use this fork
+
+| | upstream (8e568df) | this fork |
+|---|---|---|
+| speed, early run (~5,000 molecules) | ~4 steps/s at step 20,000 | ~240 steps/s |
+| speed, full 125x100 grid (~11,000 molecules) | under 1 step/s | ~120 steps/s |
+| disk per 1M-step run | ~100 GB | a few hundred MB |
+| `RANDSEED` in the config | ignored (always seed 4357) | honoured |
+| restart from a saved state | silently reseeds randomly | reproduces the run |
+| extinct runs | continue to step 1M on an empty grid | stop |
+
+Timings are single-threaded on a desktop CPU and depend on what the population is doing.
+
+The fork starts from upstream commit `8e568df`. The three upstream commits after it (a
+memory-leak cleanup) make both simulators segfault, so they are not included.
+
+## Build and run
+
+Linux, g++ and make:
+
+```
+cd src && mkdir -p ../release && make all
+mkdir -p ../runs/demo && cd ../runs/demo
+cp ../../config/spatial_stringmol_v2.0.3.conf run.conf
+../../src/smspatial x run.conf
+```
+
+Or with Docker (see `DOCKER.md`): `./sm build`, then
+`./sm start demo config/spatial_stringmol_v2.0.3.conf`, `./sm status`, `./sm viz demo`.
+
+Set `RANDSEED` in the config to get a different run. Runs made with upstream builds are
+reproduced with `RANDSEED 4357`.
+
+## Output
+
+Written into the directory the simulator runs in:
+
+| file | contents |
+|---|---|
+| `popdy001.dat` | `step,species,count` for every living species, every 100 steps (same format as upstream) |
+| `species.tsv` | each species once, when it first appears: id, birth step, parents, sequence |
+| `grid.snap` | the grid every `SNAPEVERY` steps (default 500): per frame a 16-byte header (step, width, height, byte count) then zlib-compressed `uint32` species ids, row-major, 0 for empty, bit 31 set for bound molecules |
+| `out1_N.conf`, `RNGstate_N.txt` | full checkpoints every `CKPTEVERY` steps (default 50,000); the newest `KEEPCKPT` (default 3) are kept |
+| `splist_final.dat` | the full upstream-format species list, once, at the end |
+
+`LEGACYOUT 1` in the config brings back the upstream output (species list and full state
+every 100 steps) if you need it. Expect around 100 GB per million steps.
+
+To resume a run, copy a checkpoint's `out1_N.conf` and `RNGstate_N.txt` into a new
+directory and run `smspatial x out1_N.conf` there. The population dynamics continue exactly;
+species that went extinct and later re-appear get new id numbers.
+
+## Tools
+
+- **Viewer** (`viz/build.py RUN_DIR`): writes a self-contained `viewer.html` with the grid
+  animated over time, the most abundant lineages coloured, and a population timeline you
+  can scrub. Works on both slim and legacy output.
+- **Binding probe** (`probe/probe.cpp`): binding probability and copier/copied roles for
+  pairs of molecules, using the simulator's own binding code.
+- **Reaction probe** (`probe/react.cpp`): runs a reaction between two molecules to
+  completion, mutation off, and reports what it produced.
+
+Both probes are built into the Docker image (`./sm bind FILE`, `./sm react FILE`); the
+pairs-file format is in `sm`.
+
+## What changed, and how it was checked
+
+Performance, all output-preserving:
+- cached opcode lookup in the alignment scoring function;
+- the agent lists keep an ordered mirror (a Fenwick tree over append-only slots) so
+  append, removal and picking the k-th molecule are O(log n) while list order, and so the
+  random-number stream, is unchanged;
+- species lookup through a hash index instead of a scan of every species ever seen;
+- the population writer makes one pass instead of one pass per species;
+- a Smith-Waterman alignment whose result was discarded is no longer computed.
+
+Bugs fixed:
+- `smspatial` never seeded the random number generator, so `RANDSEED` had no effect;
+- the path to `RNGFILE` was built wrongly for configs in the current directory, so restarts
+  could not load the saved generator state and reseeded from `/dev/urandom`;
+- runs carried on to step 1M after the population died out.
+
+Each change was checked against the previous build by comparing `popdy001.dat` and the
+species list byte for byte over the first 20,000+ steps, and the list-mirror changes also
+over a resumed full-grid run (steps 400,000-410,000). Setting `STRINGMOL_VERIFY=1` makes the
+simulator check the list mirrors against the linked lists on every access and report any
+drift (slow; for testing only).
+
+Known quirks left as they are, because they are part of the chemistry: the binding
+probability normalises alignment score by length, so very short fragments bind easily
+(the source calls this a "BRUTAL HACK"); the step loop is fixed at 1,000,000 steps and
+`NSTEPS` is ignored; step 90,001 prints a block of RNG debug lines.
+
+## Licence
+
+GPL, as upstream. Note that upstream's `LICENSE` file is GPL version 2 while the source
+file headers say "GPL version 3 or (at your option) any later version"; both are kept as
+they are. Copyright in the original code remains with its authors.
+
+## Papers
+
+- Hickinbotham et al., *Specification of the Stringmol chemical programming language*,
+  University of York tech report YCS-2010-458 (`smtr0.2.pdf` in this repo).
+- Hickinbotham et al., *Diversity from a monoculture: effects of mutation-on-copy in a
+  string-based artificial chemistry*, ALife XII, 2010.
+- Clark et al., *Degeneracy enriches artificial chemistry binding systems*, ECAL 2011.
+- Hickinbotham et al., *Maximizing the adjacent possible in automata chemistries*,
+  Artificial Life 22(1), 2016.
+- Hickinbotham & Stepney, *Conservation of matter increases evolutionary activity*,
+  ECAL 2015.
+- Hickinbotham, Stepney & Hogeweg, *Nothing in evolution makes sense except in the light of
+  parasites*, 2021.

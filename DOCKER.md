@@ -1,7 +1,6 @@
 # Running Stringmol in Docker
 
-Branch `perf`: upstream commit 8e568df plus performance fixes that keep output
-byte-identical (see git log). The image pins the toolchain (CUDA 13.2 devel,
+The image pins the toolchain (CUDA 13.2 devel,
 g++ 13.3) by digest so reference and future GPU builds share one compiler.
 
 ```
@@ -12,12 +11,13 @@ g++ 13.3) by digest so reference and future GPU builds share one compiler.
 ./sm stop ref_v2.0.3
 ```
 
-Each run lives in `runs/NAME/` (run.conf, splist*.dat, out1_*.conf, popdy001.dat).
-Progress lines go to the container log (`./sm logs`).
+Each run lives in `runs/NAME/` (see README.md for the output files). Progress lines go
+to the container log (`./sm logs`). `./sm resume NEW OLD STEP` continues run OLD from
+its checkpoint at STEP.
 
 Notes
-- CPU-only, single-threaded per run; no GPU reservation. aida has 6 physical
-  cores, so keep concurrent runs to about 6.
+- CPU-only, single-threaded per run; no GPU reservation. Run about one
+  simulation per physical core.
 - Output (slim, default): popdy001.dat every 100 steps; species.tsv (each species once:
   id, birth step, parents, sequence); grid.snap (compressed species-id grid every
   SNAPEVERY=500 steps, ~2 KB/frame); out1_N.conf + RNGstate_N.txt checkpoints every

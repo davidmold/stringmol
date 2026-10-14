@@ -20,3 +20,9 @@ release/stringmol
 #Doxygen stuff: 
 docs/**/*
 runs/
+
+# local builds and run output
+probe/probe
+probe/react
+.settings/
+viewer.html
